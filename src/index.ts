@@ -6,7 +6,7 @@ import { TestScheduler } from 'rxjs/testing';
 /**
  * Type that describes an action.
  */
-export type Action<T> = { payload: T; type: string };
+export type Action<T> = { payload?: T; type: string };
 
 /**
  * Expectation passed into the EpicTest.
