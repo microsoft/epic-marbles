@@ -1,0 +1,36 @@
+{
+  "name": "@mixer/epic-marbles",
+  "version": "0.1.0",
+  "description": "Marble-testing Redux",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "mocha --opts mocha.opts && npm run test:fmt",
+    "prepare": "tsc",
+    "test:fmt": "prettier --list-different \"src/**/*.{js,json,ts}\" || echo \"Run npm run fmt to fix formatting on these files\"",
+    "fmt": "prettier --write \"src/**/*.{json,ts}\""
+  },
+  "author": "Connor Peet <connor@peet.io>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chai": "^4.1.6",
+    "@types/mocha": "^5.2.5",
+    "@types/sinon": "^5.0.5",
+    "mocha": "^5.2.0",
+    "prettier": "^1.14.3",
+    "redux-observable": "^1.0.0",
+    "sinon": "^7.0.0",
+    "ts-node": "^7.0.1",
+    "typesafe-actions": "^2.0.4",
+    "typescript": "^2.9.2"
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true,
+    "printWidth": 100,
+    "tabWidth": 2
+  },
+  "dependencies": {
+    "chai": "^4.0.0",
+    "rxjs": "^6.0.0"
+  }
+}
