@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import { Epic } from 'redux-observable';
 import { never, Observable } from 'rxjs';
 import { TestScheduler } from 'rxjs/testing';
+import { map } from '../node_modules/rxjs/operators';
 
 /**
  * Type that describes an action.
@@ -12,6 +13,11 @@ export type Action<T> = { payload?: T; type: string };
  * Expectation passed into the EpicTest.
  */
 export type EpicExpectation<Actions> = Actions | ((action: { type: string; payload: any }) => void);
+
+/**
+ * Describes a type that either is another type or is a factory function for that type.
+ */
+export type Factory<T> = T | (() => T);
 
 interface ISchedulerData<T> {
   frame: number;
@@ -62,6 +68,8 @@ export class EpicTestFactory<Actions extends Action<any>, State, Dependencies> {
   }
 }
 
+const unfactorize = <T>(item: Factory<T>): T => (typeof item === 'function' ? item() : item);
+
 /**
  * EpicTest is the test instance.
  */
@@ -73,7 +81,7 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
   /**
    * Sets a single action the epic will get.
    */
-  public singleAction(action: Actions): this {
+  public singleAction(action: Factory<Actions>): this {
     this.getActions = helpers => helpers.hot('-a', { a: action });
     return this;
   }
@@ -81,7 +89,7 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
   /**
    * Sets the actions the epic will get.
    */
-  public actions(marbles: string, actions: { [key: string]: Actions }): this {
+  public actions(marbles: string, actions: { [key: string]: Factory<Actions> }): this {
     this.getActions = helpers => helpers.hot(marbles, actions);
     return this;
   }
@@ -89,7 +97,7 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
   /**
    * Makes the state passed into the action a single, simple state.
    */
-  public singleState(state: DeepPartial<State>): this {
+  public singleState(state: Factory<DeepPartial<State>>): this {
     this.getState = helpers => helpers.cold('a', { a: state });
     return this;
   }
@@ -97,7 +105,7 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
   /**
    * Sets the states the epic will get.
    */
-  public states(marbles: string, actions: { [key: string]: DeepPartial<State> }): this {
+  public states(marbles: string, actions: { [key: string]: Factory<DeepPartial<State>> }): this {
     this.getState = helpers => helpers.cold(marbles, actions);
     return this;
   }
@@ -157,8 +165,8 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
       },
     ).run(helpers => {
       const output = this.epic(
-        this.getActions(helpers) as any,
-        this.getState(helpers) as any,
+        this.getActions(helpers).pipe(map(unfactorize)) as any,
+        this.getState(helpers).pipe(map(unfactorize)) as any,
         this.services as any,
       );
       helpers.expectObservable(output).toBe(marbles, expectations);

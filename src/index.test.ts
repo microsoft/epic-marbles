@@ -86,3 +86,17 @@ it('injects using singleState', () =>
     .test('a', {
       a: didYellAction('FIRST'),
     }));
+
+it('injects factories', () => {
+  epic
+    .test(yellFromStateEpic)
+    .singleState(() => ({ foo: 'first' }))
+    .test('a', {
+      a: didYellAction('FIRST'),
+    });
+
+  epic
+    .test(yellEpic)
+    .actions('-a', { a: () => yellAction('hello') })
+    .test('-a', { a: didYellAction('HELLO') });
+});
