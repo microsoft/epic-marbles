@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { Epic } from 'redux-observable';
 import { never, Observable } from 'rxjs';
 import { TestScheduler } from 'rxjs/testing';
-import { map } from '../node_modules/rxjs/operators';
+import { map } from 'rxjs/operators';
 
 /**
  * Type that describes an action.
