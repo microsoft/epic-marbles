@@ -13,6 +13,7 @@ import {
   dependencyCaller,
   extraYellingEpic,
   yellFromStateEpic,
+  getsStateCurrentValue,
 } from './demo-app.test';
 
 const epic = new EpicTestFactory<Actions, IState, IDependencies>();
@@ -100,3 +101,13 @@ it('injects factories', () => {
     .actions('-a', { a: () => yellAction('hello') })
     .test('-a', { a: didYellAction('HELLO') });
 });
+
+it('reads the state.value', () =>
+  epic
+    .test(getsStateCurrentValue)
+    .states('--ab', { a: { foo: 'bar' }, b: { foo: 'baz' } })
+    .actions('-a', { a: yellAction('hi') })
+    .test('--ab', {
+      a: didYellAction('BAR'),
+      b: didYellAction('BAZ'),
+    }));

@@ -1,8 +1,8 @@
 import { createStandardAction, ActionType, isActionOf } from 'typesafe-actions';
 import { Epic } from 'redux-observable';
-import { filter, map, ignoreElements, switchMap } from 'rxjs/operators';
+import { filter, map, ignoreElements, switchMap, switchMapTo, take } from 'rxjs/operators';
 import { SinonStub } from 'sinon';
-import { of } from 'rxjs';
+import { of, interval } from 'rxjs';
 
 export const dependencyCaller = createStandardAction('DEPENDENCY_CALL')<string>();
 export const yellAction = createStandardAction('YELL')<string>();
@@ -50,3 +50,13 @@ export const callDependencyEpic: Epic<Actions, Actions, IState, IDependencies> =
 
 export const yellFromStateEpic: Epic<Actions, Actions, IState> = (_actions, state) =>
   state.pipe(map(state => didYellAction(state.foo.toUpperCase())));
+
+export const getsStateCurrentValue: Epic<Actions, Actions, IState> = (actions, state) =>
+  actions.pipe(
+    switchMapTo(
+      interval(1).pipe(
+        map(() => didYellAction(state.value.foo.toUpperCase())),
+        take(2),
+      ),
+    ),
+  );

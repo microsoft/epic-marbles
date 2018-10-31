@@ -1,8 +1,8 @@
 import { expect } from 'chai';
 import { Epic } from 'redux-observable';
-import { never, Observable } from 'rxjs';
+import { never, Observable, merge } from 'rxjs';
 import { TestScheduler } from 'rxjs/testing';
-import { map } from 'rxjs/operators';
+import { map, tap, ignoreElements } from 'rxjs/operators';
 
 /**
  * Type that describes an action.
@@ -98,7 +98,7 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
    * Makes the state passed into the action a single, simple state.
    */
   public singleState(state: Factory<DeepPartial<State>>): this {
-    this.getState = helpers => helpers.cold('a', { a: state });
+    this.getState = helpers => helpers.hot('a', { a: state });
     return this;
   }
 
@@ -106,7 +106,7 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
    * Sets the states the epic will get.
    */
   public states(marbles: string, actions: { [key: string]: Factory<DeepPartial<State>> }): this {
-    this.getState = helpers => helpers.cold(marbles, actions);
+    this.getState = helpers => helpers.hot(marbles, actions);
     return this;
   }
 
@@ -128,7 +128,7 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
     // lots of <any> here. TestScheduler typings are not very good, and
     // we do some patching for concise tests.
 
-    new TestScheduler(
+    const scheduler = new TestScheduler(
       (
         actual: Array<ISchedulerData<Actions>>,
         expected: Array<ISchedulerData<EpicExpectation<Actions>>>,
@@ -163,11 +163,21 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
           }
         }
       },
-    ).run(helpers => {
-      const output = this.epic(
-        this.getActions(helpers).pipe(map(unfactorize)) as any,
-        this.getState(helpers).pipe(map(unfactorize)) as any,
-        this.services as any,
+    );
+
+    scheduler.run(helpers => {
+      const state = this.getState(helpers).pipe(map(unfactorize));
+      const output = merge(
+        this.epic(
+          this.getActions(helpers).pipe(map(unfactorize)) as any,
+          state as any,
+          this.services as any,
+        ),
+        state.pipe(
+          map(unfactorize),
+          tap(value => ((<any>state).value = value)),
+          ignoreElements(),
+        ),
       );
       helpers.expectObservable(output).toBe(marbles, expectations);
     });
