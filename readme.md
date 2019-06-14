@@ -35,8 +35,12 @@ it('says hello', () =>
       // or define custom callbacks to run
       b: action => {
         expect(action).to.deep.equal(greeterActions.greet({ name: 'jim' }));
-        expect(mockGreeterService.hello).to.have.been.calledTwice;
       },
+    })
+    // (optional): custom callback to be executed after test is finished
+    .after(() => {
+      // a good place to assert that mock methods have been called
+      expect(mockGreeterService.hello).to.have.been.calledTwice;
     }));
 ```
 

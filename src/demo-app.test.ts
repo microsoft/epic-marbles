@@ -61,5 +61,11 @@ export const getsStateCurrentValue: Epic<Actions, Actions, IState> = (actions, s
     ),
   );
 
+export const emptyEpic: Epic<Actions> = actions => {
+  return actions.pipe(
+    filter(isActionOf(yellAction)),
+    ignoreElements(),
+  );
+};
 export const errorEpic: Epic<Actions, Actions, IState> = actions =>
   actions.pipe(switchMapTo(throwError({ message: 'oh no!', name: 'SomeError' })));

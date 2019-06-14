@@ -127,6 +127,15 @@ export class EpicTest<Action extends IAction<any>, State, Dependencies> {
       );
       helpers.expectObservable(output).toBe(marbles, expectations);
     });
+
+    return this;
+  }
+  /**
+   * Executes a given callback function
+   * @param callback - function to execute
+   */
+  public after<T>(callback: () => T | Promise<T>) {
+    callback();
   }
 
   private getActions: (helpers: any) => Observable<Action> = () => never();
