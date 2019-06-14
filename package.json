@@ -4,22 +4,28 @@
   "description": "Marble-testing Redux",
   "main": "dist/index.js",
   "scripts": {
-    "test": "mocha --opts mocha.opts && npm run test:fmt",
+    "test": "npm run test:unit && npm run test:lint && npm run test:fmt",
     "prepare": "tsc",
     "test:fmt": "prettier --list-different \"src/**/*.{js,json,ts}\" || echo \"Run npm run fmt to fix formatting on these files\"",
-    "fmt": "prettier --write \"src/**/*.{json,ts}\""
+    "test:unit": "mocha --opts mocha.opts",
+    "test:lint": "node-ex tslint --project tsconfig.json \"src/**/*.ts\"",
+    "fmt": "node-ex prettier --write \"src/**/*.{json,ts}\" && npm run test:lint -- --fix"
   },
   "author": "Connor Peet <connor@peet.io>",
   "license": "MIT",
   "devDependencies": {
     "@types/chai": "^4.1.6",
-    "@types/mocha": "^5.2.5",
+    "@types/mocha": "^0.0.5",
+    "@types/node": "^12.0.8",
     "@types/sinon": "^5.0.5",
+    "chai": "^4.0.0",
     "mocha": "^5.2.0",
     "prettier": "^1.14.3",
     "redux-observable": "^1.0.0",
     "sinon": "^7.0.0",
     "ts-node": "^7.0.1",
+    "tslint": "^5.17.0",
+    "tslint-config-prettier": "^1.18.0",
     "typesafe-actions": "^2.0.4",
     "typescript": "^2.9.2"
   },
@@ -30,7 +36,7 @@
     "tabWidth": 2
   },
   "dependencies": {
-    "chai": "^4.0.0",
+    "figures": "^3.0.0",
     "rxjs": "^6.0.0"
   }
 }

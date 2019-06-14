@@ -1,53 +1,17 @@
-import { expect } from 'chai';
+import { AssertionError } from 'assert';
 import { Epic } from 'redux-observable';
-import { never, Observable, merge } from 'rxjs';
+import { merge, never, Observable } from 'rxjs';
+import { ignoreElements, map, tap } from 'rxjs/operators';
 import { TestScheduler } from 'rxjs/testing';
-import { map, tap, ignoreElements } from 'rxjs/operators';
+import { Assertion } from './assertion';
+import { EpicExpectation, IAction, IEpicExpectationMap, ISchedulerData } from './types';
 
-/**
- * Type that describes an action.
- */
-export type Action<T> = { payload?: T; type: string };
-
-/**
- * Expectation passed into the EpicTest.
- */
-export type EpicExpectation<Actions> = Actions | ((action: { type: string; payload: any }) => void);
+export { EpicExpectation, IAction } from './types';
 
 /**
  * Describes a type that either is another type or is a factory function for that type.
  */
 export type Factory<T> = T | (() => T);
-
-interface ISchedulerData<T> {
-  frame: number;
-  notification: { value: T; error?: Error };
-}
-
-const getCharacterFor = (action: ISchedulerData<any>) =>
-  action.notification.error
-    ? action.notification.error.name
-    : action.notification.value
-      ? action.notification.value.type
-      : '?';
-
-const listActionsIn = (actions: Array<ISchedulerData<any>>) => {
-  let beadIndex = 0;
-  let output = '';
-  actions.forEach((action, i) => {
-    while (beadIndex++ < action.frame) {
-      output += '-';
-    }
-    if (i > 0 && actions[i - 1].frame === action.frame) {
-      output += '|';
-    }
-
-    output += getCharacterFor(action);
-  });
-
-  return output;
-};
-
 /**
  * A recursive partial type.
  */
@@ -62,7 +26,7 @@ export type DeepPartial<T> = {
  * mainly so you can capture your app typings in one place rather than
  * create then anew each time.
  */
-export class EpicTestFactory<Actions extends Action<any>, State, Dependencies> {
+export class EpicTestFactory<Actions extends IAction<any>, State, Dependencies> {
   public test(epic: Epic<Actions, Actions, State, Dependencies>) {
     return new EpicTest<Actions, State, Dependencies>(epic);
   }
@@ -73,23 +37,32 @@ const unfactorize = <T>(item: Factory<T>): T => (typeof item === 'function' ? it
 /**
  * EpicTest is the test instance.
  */
-export class EpicTest<Actions extends Action<any>, State, Dependencies> {
+// tslint:disable-next-line
+export class EpicTest<Action extends IAction<any>, State, Dependencies> {
   private services: Partial<Dependencies> = {};
 
-  constructor(private readonly epic: Epic<Actions, Actions, State>) {}
+  constructor(private readonly epic: Epic<Action, Action, State>) {}
 
   /**
    * Sets a single action the epic will get.
    */
-  public singleAction(action: Factory<Actions>): this {
+  public singleAction(action: Factory<Action>): this {
     this.getActions = helpers => helpers.hot('-a', { a: action });
     return this;
   }
 
   /**
+   * Sets the actions the epic will get. Alias of actions(), but gets aligned
+   * correctly.
+   */
+  public send(marbles: string, actions: { [key: string]: Factory<Action> }): this {
+    return this.actions(marbles, actions);
+  }
+
+  /**
    * Sets the actions the epic will get.
    */
-  public actions(marbles: string, actions: { [key: string]: Factory<Actions> }): this {
+  public actions(marbles: string, actions: { [key: string]: Factory<Action> }): this {
     this.getActions = helpers => helpers.hot(marbles, actions);
     return this;
   }
@@ -121,50 +94,23 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
   /**
    * Runs a test with the set of expectations.
    */
-  public test(
-    marbles: string = '-',
-    expectations: { [key: string]: EpicExpectation<Actions> } = {},
-  ) {
-    // lots of <any> here. TestScheduler typings are not very good, and
-    // we do some patching for concise tests.
-
+  public test(marbles: string = '-', expectations: IEpicExpectationMap<Action> = {}) {
     const scheduler = new TestScheduler(
       (
-        actual: Array<ISchedulerData<Actions>>,
-        expected: Array<ISchedulerData<EpicExpectation<Actions>>>,
+        actual: Array<ISchedulerData<Action>>,
+        expected: Array<ISchedulerData<EpicExpectation<Action>>>,
       ) => {
-        expect(actual).to.have.lengthOf(
-          expected.length,
-          `Expected to emit ${expected.length} events, but ` +
-            `got ${actual.length} (${listActionsIn(actual)})`,
-        );
-
-        for (let i = 0; i < expected.length; i++) {
-          expect(actual[i].frame).to.equal(
-            expected[i].frame,
-            `Expected to emit ${getCharacterFor(expected[i])} in frame ${expected[i].frame},` +
-              ` but we got it in frame ${actual[i].frame}`,
-          );
-
-          const actualData = actual[i].notification;
-          const expectedValue = expected[i].notification;
-
-          if (actualData.error) {
-            if (!expectedValue.error) {
-              throw actualData.error;
-            }
-            continue;
-          }
-
-          if (expectedValue.value instanceof Function) {
-            expectedValue.value(actualData.value as any);
-          } else {
-            expect(actualData.value).to.deep.equal(expectedValue.value);
-          }
+        const assertion = Assertion.create(expectations, expected, actual);
+        if (assertion.failed()) {
+          throw new AssertionError({
+            message: assertion.annotate(),
+          });
         }
       },
     );
 
+    // lots of <any> here. TestScheduler typings are not very good, and
+    // we do some patching for concise tests.
     scheduler.run(helpers => {
       const state = this.getState(helpers).pipe(map(unfactorize));
       const output = merge(
@@ -175,7 +121,7 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
         ),
         state.pipe(
           map(unfactorize),
-          tap(value => ((<any>state).value = value)),
+          tap(value => ((state as any).value = value)),
           ignoreElements(),
         ),
       );
@@ -183,6 +129,6 @@ export class EpicTest<Actions extends Action<any>, State, Dependencies> {
     });
   }
 
-  private getActions: (helpers: any) => Observable<Actions> = () => never();
+  private getActions: (helpers: any) => Observable<Action> = () => never();
   private getState: (helpers: any) => Observable<State> = () => never();
 }

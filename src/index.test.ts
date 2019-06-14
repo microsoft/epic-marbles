@@ -1,24 +1,27 @@
-import { expect, AssertionError } from 'chai';
+import { expect } from 'chai';
 import { stub } from 'sinon';
 
-import { EpicTestFactory } from './index';
+import { AssertionError } from 'assert';
 import {
   Actions,
-  IState,
-  IDependencies,
-  yellEpic,
-  yellAction,
-  didYellAction,
   callDependencyEpic,
   dependencyCaller,
+  didYellAction,
+  errorEpic,
   extraYellingEpic,
-  yellFromStateEpic,
   getsStateCurrentValue,
+  IDependencies,
+  IState,
+  yellAction,
+  yellEpic,
+  yellFromStateEpic,
 } from './demo-app.test';
+import { EpicTestFactory } from './index';
 
 const epic = new EpicTestFactory<Actions, IState, IDependencies>();
 
-const expectAssertionError = (fn: () => void) => () => expect(fn).to.throw(AssertionError);
+const expectAssertionError = (fn: () => void, message: string[] = []) => () =>
+  expect(fn).to.throw(AssertionError, message.join('\r\n'));
 
 it('asserts output actions successfully', () =>
   epic
@@ -33,22 +36,97 @@ it('asserts multiple output actions successfully', () =>
     .test('-(ab)', { a: didYellAction('HELLO'), b: didYellAction('HELLOHELLO') }));
 
 it(
+  'fails if epic emits error',
+  expectAssertionError(
+    () =>
+      epic
+        .test(errorEpic)
+        .singleAction(yellAction('hello'))
+        .test('---'),
+    [
+      '',
+      'Expected: -- -------',
+      'Actual:   -!0-------',
+      '',
+      'Expectations:',
+      '',
+      'Unmatched/Extraneous Actions:',
+      '  !0@1: SomeError: oh no!',
+    ],
+  ),
+);
+
+it(
+  'fails if one action mismatches',
+  expectAssertionError(
+    () =>
+      epic
+        .test(extraYellingEpic)
+        .send('-a----b', { a: yellAction('hello'), b: yellAction('bye') })
+        .test('-(ab)-(cd)', {
+          a: didYellAction('HELLO'),
+          b: didYellAction('wut'),
+          c: didYellAction('BYE'),
+          d: didYellAction('BYEBYE'),
+        }),
+    [
+      '',
+      'Expected: -(a b) ----(c d)',
+      'Actual:   -(a ?1)----(c d)',
+      '',
+      'Expectations:',
+      '  ✔ a@1: DID_YELL "HELLO"',
+      '  ✖ b@1: DID_YELL "wut"',
+      '  ✔ c@6: DID_YELL "BYE"',
+      '  ✔ d@6: DID_YELL "BYEBYE"',
+      '',
+      'Unmatched/Extraneous Actions:',
+      '  ?1@1: DID_YELL "HELLOHELLO"',
+    ],
+  ),
+);
+
+it(
   'fails if extra actions are emitted',
-  expectAssertionError(() =>
-    epic
-      .test(extraYellingEpic)
-      .actions('-a', { a: yellAction('hello') })
-      .test('-a', { a: didYellAction('HELLO') }),
+  expectAssertionError(
+    () =>
+      epic
+        .test(extraYellingEpic)
+        .actions('-a', { a: yellAction('hello') })
+        .test('-a', { a: didYellAction('HELLO') }),
+    [
+      '',
+      'Expected: -  a   ---',
+      'Actual:   -(a ?1)---',
+      '',
+      'Expectations:',
+      '  ✔ a@1: DID_YELL "HELLO"',
+      '',
+      'Unmatched/Extraneous Actions:',
+      '  ?1@1: DID_YELL "HELLOHELLO"',
+    ],
   ),
 );
 
 it(
   'fails if output is mismatched',
-  expectAssertionError(() =>
-    epic
-      .test(yellEpic)
-      .actions('-a', { a: yellAction('hello') })
-      .test('-a', { a: didYellAction('wut') }),
+  expectAssertionError(
+    () =>
+      epic
+        .test(yellEpic)
+        .actions('-a', { a: yellAction('hello') })
+        .test('-a', { a: didYellAction('wut') }),
+    [
+      '',
+      'Expected: -a -------',
+      'Actual:   -?0-------',
+      '',
+      'Expectations:',
+      '  ✖ a@1: DID_YELL "wut"',
+      '',
+      'Unmatched/Extraneous Actions:',
+      '  ?0@1: DID_YELL "HELLO"',
+    ],
   ),
 );
 
