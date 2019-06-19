@@ -7,6 +7,7 @@ import {
   callDependencyEpic,
   dependencyCaller,
   didYellAction,
+  emptyEpic,
   errorEpic,
   extraYellingEpic,
   getsStateCurrentValue,
@@ -142,8 +143,10 @@ it('runs dependency tests', () => {
     .test(callDependencyEpic)
     .service('dep', dep)
     .singleAction(dependencyCaller('w00t'))
-    .test();
-  expect(dep.calledWith('w00t')).to.be.true;
+    .test()
+    .after(() => {
+      expect(dep.calledWith('w00t')).to.be.true;
+    });
 });
 
 it('injects state correctly', () =>
@@ -189,3 +192,75 @@ it('reads the state.value', () =>
       a: didYellAction('BAR'),
       b: didYellAction('BAZ'),
     }));
+
+describe('after callback', () => {
+  it('executes after test is complete', () => {
+    let isAfterExecuted = false;
+    epic
+      .test(yellEpic)
+      .actions('-a', { a: yellAction('hello') })
+      .test('-a', { a: didYellAction('HELLO') })
+      .after(() => {
+        isAfterExecuted = true;
+      });
+
+    expect(isAfterExecuted).to.be.true;
+  });
+
+  it('executes a promise callback', done => {
+    let isAfterExecuted = false;
+    epic
+      .test(emptyEpic)
+      .actions('-a', { a: yellAction('hello') })
+      .test('---')
+      .after(() => {
+        return new Promise((resolve, _) => {
+          isAfterExecuted = true;
+          resolve();
+        });
+      })
+      .then(() => {
+        expect(isAfterExecuted).to.be.true;
+        done();
+      })
+      .catch(() => {
+        done('promise rejected');
+      });
+  });
+
+  it('fails test if the passed in function fails', () => {
+    let didFail = false;
+
+    try {
+      epic
+        .test(emptyEpic)
+        .actions('-a', { a: yellAction('hello') })
+        .test('---')
+        .after(() => {
+          expect(false).to.be.true;
+        });
+    } catch {
+      didFail = true;
+    }
+
+    expect(didFail).to.be.true;
+  });
+
+  it('fails test if the passed in function throws exception', () => {
+    let didFail = false;
+
+    try {
+      epic
+        .test(emptyEpic)
+        .actions('-a', { a: yellAction('hello') })
+        .test('---')
+        .after(() => {
+          throw new Error();
+        });
+    } catch {
+      didFail = true;
+    }
+
+    expect(didFail).to.be.true;
+  });
+});
