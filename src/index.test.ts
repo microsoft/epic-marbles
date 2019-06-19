@@ -207,7 +207,7 @@ describe('after callback', () => {
     expect(isAfterExecuted).to.be.true;
   });
 
-  it('executes a promise callback', () => {
+  it('executes a promise callback', done => {
     let isAfterExecuted = false;
     epic
       .test(emptyEpic)
@@ -218,9 +218,14 @@ describe('after callback', () => {
           isAfterExecuted = true;
           resolve();
         });
+      })
+      .then(() => {
+        expect(isAfterExecuted).to.be.true;
+        done();
+      })
+      .catch(() => {
+        done('promise rejected');
       });
-
-    expect(isAfterExecuted).to.be.true;
   });
 
   it('fails test if the passed in function fails', () => {

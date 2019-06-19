@@ -134,8 +134,8 @@ export class EpicTest<Action extends IAction<any>, State, Dependencies> {
    * Executes a given callback function
    * @param callback - function to execute
    */
-  public after<T>(callback: () => T | Promise<T>) {
-    callback();
+  public after<T>(callback: () => T): T {
+    return callback();
   }
 
   private getActions: (helpers: any) => Observable<Action> = () => never();
